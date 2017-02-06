@@ -79,7 +79,7 @@ export class HomePage {
   startTracking(min) {
   	console.log('In startTracking',min);
     // by default code for foreground
-    this.locationService.startTracking();
+    this.locationService.watchLocation();
   }
 
   stopTracking() {
