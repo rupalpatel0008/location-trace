@@ -1,14 +1,42 @@
 <ion-header>
   <ion-navbar>
     <ion-title>
-      Ionic Blank
+      Location Trace
     </ion-title>
   </ion-navbar>
 </ion-header>
 
 <ion-content padding>
-  The world is your oyster.
-  <p>
-    If you get lost, the <a href="http://ionicframework.com/docs/v2">docs</a> will be your guide.
-  </p>
+  <ion-list>
+	  <ion-item text-wrap>
+			My Location: {{ myLocation.address }}
+	  </ion-item>
+	  <ion-item text-wrap>
+	    <ion-label>Latitude: {{ myLocation.latitude }}</ion-label>
+	  </ion-item>
+	  <ion-item text-wrap>
+	    <ion-label>Longitude: {{ myLocation.longitude }}</ion-label>
+	  </ion-item>
+	  <ion-item *ngIf="!tracking" text-wrap>
+	  	<button ion-button block color="secondary" (click)="showTrackingOptions()">Start Tracking</button>
+	  </ion-item>
+	  <ion-item *ngIf="tracking" text-wrap>
+	  	<button ion-button block color="danger" (click)="stopTracking()">Stop Tracking</button>
+	  </ion-item>
+	  <ion-item *ngIf="!tracking" text-wrap>
+	  	<ion-label>Distance Travelled: {{ totalDistance }}</ion-label>
+	  </ion-item>
+	  <ion-item>
+	  	<button ion-button block color="primary" (click)="getStoredDistance()">Get Stored Distance</button>
+	  </ion-item>
+	  <ion-item text-wrap>
+	  	<ion-label>Stored Distance: {{ storedTotalDistance }}</ion-label>
+	  </ion-item>
+	  <ion-item>
+	  	<button ion-button block color="primary" (click)="getStoredDistance()">Get Stored Distance</button>
+	  </ion-item>
+	  <ion-item text-wrap>
+	  	<ion-label>Stored Distance: {{ storedTotalDistance }}</ion-label>
+	  </ion-item>
+	</ion-list>
 </ion-content>
