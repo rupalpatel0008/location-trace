@@ -17,20 +17,22 @@ export class MyApp {
       // Here you can do any higher level native things you might need.
       // BackgroundGeolocation is highly configurable. See platform specific configuration options
       let config = {
-              desiredAccuracy: 0,
-              stationaryRadius: 10,
-              distanceFilter: 20,
-              debug: true, //  enable this hear sounds for background-geolocation life-cycle.
-              stopOnTerminate: false, // enable this to clear background location settings when the app terminates
+        desiredAccuracy: 0,
+        stationaryRadius: 10,
+        distanceFilter: 20,
+        debug: true, //  enable this hear sounds for background-geolocation life-cycle.
+        stopOnTerminate: false, // enable this to clear background location settings when the app terminates
+        url: 'http://192.168.1.117:3000/locations',
+        pauseLocationUpdates: false
       };
 
       BackgroundGeolocation.configure((location) => {
-           console.log('[js] BackgroundGeolocation callback:  ' + location.latitude + ',' + location.longitude);
+        console.log('[js] BackgroundGeolocation callback:  ' + location.latitude + ',' + location.longitude);
 
-            // IMPORTANT:  You must execute the finish method here to inform the native plugin that you're finished,
-            // and the background-task may be completed.  You must do this regardless if your HTTP request is successful or not.
-            // IF YOU DON'T, ios will CRASH YOUR APP for spending too much time in the background.
-            // BackgroundGeolocation.finish(); // FOR IOS ONLY
+        // IMPORTANT:  You must execute the finish method here to inform the native plugin that you're finished,
+        // and the background-task may be completed.  You must do this regardless if your HTTP request is successful or not.
+        // IF YOU DON'T, ios will CRASH YOUR APP for spending too much time in the background.
+        // BackgroundGeolocation.finish(); // FOR IOS ONLY
 
        }, (error) => {
          console.log('BackgroundGeolocation error');
