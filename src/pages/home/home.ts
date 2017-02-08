@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
-import { Platform, AlertController } from 'ionic-angular';
+import { Platform, AlertController, Events } from 'ionic-angular';
+import { GoogleMap, GoogleMapsMarkerOptions, GoogleMapsLatLng, GoogleMapsEvent, GoogleMapsMarkerIcon, TextToSpeech, Splashscreen } from 'ionic-native';
 import { LocationService } from '../../providers/location-service';
 import { Utils } from '../../providers/utils';
 
@@ -8,121 +9,181 @@ import { Utils } from '../../providers/utils';
   templateUrl: 'home.html'
 })
 export class HomePage {
-	tracking: boolean = false;
+	tracking: boolean;
+  map: GoogleMap;
 	myLocation = {
 		latitude: 0,
 		longitude: 0,
-		address: '',
+		address: 'unknown',
 		updateTime: 0
 	};
+  locations: any = [];
 	loader: any;
 	totalDistance = 0;
-	storedTotalDistance = 0;
-	myLocations = [];
-  timeInMilliSec = 0;
+  markerIconSelf: GoogleMapsMarkerIcon = {
+    url: './assets/img/map-marker.png',
+    size: {
+      width: 30,
+      height: 40
+    }
+  };
+  voiceOptions = {
+    text: 'You are at, ',
+    locale: 'en-US',
+    rate: 1
+  };
+  mapLoaded: boolean = false;
+  voiceAlerts:boolean = true;
+
   constructor(
   	public platform: Platform,
   	public alertCtrl: AlertController,
+    public events: Events,
   	public locationService: LocationService,
   	public utils: Utils) {
     this.platform.ready().then(() => {
-  		this.loader = this.utils.getLoading('Getting your location...', 10000);
-  		this.loader.present();
-  		this.getMyLocation();
+      this.events.subscribe('location:started',() => {
+        console.log('Location tracking started');
+        this.tracking = true;
+      });
+      this.voiceOptions.locale = navigator.language;
+      this.loader = this.utils.getLoading('Loading map...', 50000);
+      this.loader.present();
+      this.events.subscribe('location:updated',(location) => {
+        console.log('Location tracking started');
+        this.myLocation.latitude = location.latitude;
+        this.myLocation.longitude = location.longitude;
+        this.locationService.getLocationName(location.latitude, location.longitude).then(address => {
+          console.log('address:', address);
+          this.myLocation.address = address;
+        }).catch(err => {
+          console.log('err:',err);
+          this.myLocation.address = 'unknown';
+        });
+        this.locations.push(location);
+        this.showMap(this.myLocation.latitude, this.myLocation.longitude);
+      });
   	});
   }
 
-  showTrackingOptions() {
-  	console.log('In showTrackingOptions');
-  	let confirm =  this.alertCtrl.create({
-  		title: 'Track Options',
-  		subTitle: 'Choose time to update your location.'
-  	});
-    confirm.addInput({
-      type: 'radio',
-      label: '10 seconds',
-      value: '10000',
-      checked: true
+  showMap(lattitude, longitude) {
+    console.log('map', this.map);
+    Splashscreen.hide();     
+    let location = new GoogleMapsLatLng(lattitude, longitude);
+    this.createMap(location);
+    this.map.on(GoogleMapsEvent.MAP_READY).subscribe(() => {
+      console.log('Map is ready!');
+      
+      // create new marker
+      let markerOptions: GoogleMapsMarkerOptions = {
+        position: location,
+        draggable: false,
+        icon: this.markerIconSelf
+      };
+      console.log('marker options',markerOptions);
+      this.addMarkerSelf(markerOptions);
+      this.loader.dismiss(); 
     });
-  	confirm.addInput({
-  		type: 'radio',
-  		label: '1 minutes',
-  		value: '60000'
-  	});
-  	confirm.addInput({
-  		type: 'radio',
-  		label: '5 minutes',
-  		value: '300000'
-  	});
-  	confirm.addInput({
-  		type: 'radio',
-  		label: '10 minutes',
-  		value: '600000'
-  	});
-  	confirm.addInput({
-  		type: 'radio',
-  		label: '15 minutes',
-  		value: '900000'
-  	});
-  	confirm.addButton('Cancel');
-  	confirm.addButton({
-  		text: 'Start',
-  		handler: data => {
-  			this.tracking = true;
-  			this.myLocation.updateTime = data;
-  			this.startTracking(data);
-  		}
-  	});
-  	confirm.present();
   }
 
-  startTracking(min) {
-  	console.log('In startTracking',min);
-    // by default code for foreground
-    this.locationService.watchLocation();
+  createMap(location) {
+    this.map = new GoogleMap('map', {
+      'backgroundColor': 'white',
+      'controls': {
+        'compass': true,
+        'indoorPicker': true,
+        'zoom': true
+      },
+      'gestures': {
+        'scroll': true,
+        'tilt': false,
+        'rotate': true,
+        'zoom': true
+      },
+      'camera': {
+        'latLng': location,
+        'tilt': 10,
+        'zoom': 11,
+        'bearing': 50
+      },
+    });
+  }
+
+  addMarkerSelf(markerOptions) {
+    console.log('In addMarkerSelf()');
+    this.map.addMarker(markerOptions).then( (marker) => {
+      marker.showInfoWindow();
+      this.alertLocationOverVoice(this.myLocation.address);
+      this.handleMarkerClick(marker);
+    }).catch( (err) => {
+      console.log('failed to show marker',err);
+    });
+  }
+
+  handleMarkerClick(marker) {
+    marker.addEventListener(GoogleMapsEvent.MARKER_CLICK).subscribe( data => {
+      marker.showInfoWindow();
+    });
+  }
+
+  startTracking() {
+    this.locationService.startTracking();
   }
 
   stopTracking() {
-  	console.log('In stopTracking');
-		this.tracking = false;
-		this.locationService.stopTracking().then(data => {
-			console.log('stopped background location tracking', data);
-		}).catch(err => {
-			console.log('err in stop background location tracking', err);
-		})
-    
+    console.log('In stopTracking');
+    this.locationService.stopTracking().then(data => {
+      let toast = this.utils.getToast('Stopped location tracking.', 4000);
+      toast.present();
+      this.tracking = false;
+      this.map.clear();
+    }).catch(err => {
+      let toast = this.utils.getToast('Failed to stop location tracking.', 4000);
+      toast.present();
+    });
   }
 
-  getMyLocation() {
-  	console.log('In getMyLocation()');
-  	this.locationService.getCurrentLocation().then((data:any) => {
-			this.myLocation.latitude = data.coords.latitude;
-			this.myLocation.longitude = data.coords.longitude;
-	  	console.log('In getMyLocation()', this.myLocation.latitude, this.myLocation.longitude);
-			this.locationService.getLocationName(this.myLocation.latitude, this.myLocation.longitude).then(address => {
-				this.myLocation.address = address;
-				this.loader.dismiss();
-		  	this.myLocations.push(this.myLocation);
-			}).catch(err => {
-				this.myLocation.address = 'unknown';
-		  	this.myLocations.push(this.myLocation);
-  			console.log('Err in getting location name.', err);
-				this.loader.dismiss();
-			});
-		}).catch(err => {
-			this.myLocation.latitude = 0;
-			this.myLocation.longitude = 0;
-			console.log('Err in getting location.', err);
-			this.loader.dismiss();
-		});
+  calculateDistance() {
+    let d = 0;
+    // this.locationService.getAllLocations().then(data => {
+
+    // }).catch(err => {
+    //   console.log('err in locations:', err);
+    // })
+    for(let i = 0; i < this.locations.length - 1; i++) {
+      // console.log(this.locations[i]);
+      d += this.locationService.calculateDistanceBetweenPoints(this.locations[i].latitude,this.locations[i].longitude, this.locations[i+1].latitude,this.locations[i+1].longitude);
+      console.log('distance:',d);
+    }
+    let toast = this.utils.getToast('You have travelled '+d.toFixed(4)+' km.', 5000);
+    toast.present();
   }
 
-  calculateTotalDistance() {
-  	console.log('In calculateTotalDistance');
-  	for(let i = 0; i < this.myLocations.length - 1; i++) {
-  		this.totalDistance += this.locationService.calculateDistanceBetweenPoints(this.myLocations[i].latitude, this.myLocations[i].longitude, this.myLocations[i + 1].latitude, this.myLocations[i + 1].longitude);
-  		console.log('this.totalDistance in loop',this.totalDistance);
-  	}
+  alertLocationOverVoice(address) {
+    if(this.voiceAlerts) {
+      if(this.platform.is('ios')) {
+        this.voiceOptions.text = 'Location updated, '+address;
+        this.voiceOptions.rate = 1.5;
+      } else if(this.platform.is('android')) {
+        this.voiceOptions.text = 'Location updated, '+address;
+        this.voiceOptions.rate = 0.95;
+      }
+      
+      TextToSpeech.speak(this.voiceOptions).then(() => {
+        console.log('Spoken '+this.voiceOptions.text+'With locale '+this.voiceOptions.locale);
+      }).catch(err => {
+        console.log('err in speak location', err);
+      });
+    } else {
+      console.log('No voie alerts');
+    }
   }
 
+  stopVoiceAlerts() {
+    this.voiceAlerts = false;
+  }
+
+  startVoiceAlerts() {
+    this.voiceAlerts = true;
+  }
 }

@@ -7,36 +7,33 @@
 </ion-header>
 
 <ion-content padding>
-  <ion-list>
-	  <ion-item text-wrap>
-			My Location: {{ myLocation.address }}
-	  </ion-item>
-	  <ion-item text-wrap>
-	    <ion-label>Latitude: {{ myLocation.latitude }}</ion-label>
-	  </ion-item>
-	  <ion-item text-wrap>
-	    <ion-label>Longitude: {{ myLocation.longitude }}</ion-label>
-	  </ion-item>
-	  <ion-item *ngIf="!tracking" text-wrap>
-	  	<button ion-button block color="secondary" (click)="showTrackingOptions()">Start Tracking</button>
-	  </ion-item>
-	  <ion-item *ngIf="tracking" text-wrap>
-	  	<button ion-button block color="danger" (click)="stopTracking()">Stop Tracking</button>
-	  </ion-item>
-	  <ion-item *ngIf="!tracking" text-wrap>
-	  	<ion-label>Distance Travelled: {{ totalDistance }}</ion-label>
-	  </ion-item>
-	  <ion-item>
-	  	<button ion-button block color="primary" (click)="getStoredDistance()">Get Stored Distance</button>
-	  </ion-item>
-	  <ion-item text-wrap>
-	  	<ion-label>Stored Distance: {{ storedTotalDistance }}</ion-label>
-	  </ion-item>
-	  <ion-item>
-	  	<button ion-button block color="primary" (click)="getStoredDistance()">Get Stored Distance</button>
-	  </ion-item>
-	  <ion-item text-wrap>
-	  	<ion-label>Stored Distance: {{ storedTotalDistance }}</ion-label>
-	  </ion-item>
-	</ion-list>
+  <div id="map">
+    <ion-row>
+      <ion-col width-50>
+        <button ion-button block color="secondary" (click)="startTracking()" *ngIf="!tracking">Start<br>tracking</button>
+        <button ion-button block color="danger" (click)="stopTracking()" *ngIf="tracking">Stop<br>tracking</button>
+      </ion-col>
+      <ion-col width-50>
+        <button ion-button block color="safron" (click)="calculateDistance()" *ngIf="tracking">Calculate<br>Distance</button>
+      </ion-col>
+    </ion-row>
+    <ion-row>
+      <ion-col width-50>
+        <button ion-button block color="pink" (click)="stopVoiceAlerts()" *ngIf="tracking">Stop Voice<br>Alerts</button>
+      </ion-col>
+      <ion-col width-50>
+        <button ion-button block color="darkpink" (click)="startVoiceAlerts()" *ngIf="tracking">Start Voice<br>Alerts</button>
+      </ion-col>
+    </ion-row>
+    <!-- <ion-fab left top>
+      <button ion-fab color="primary"><ion-icon name="map"></ion-icon></button>
+      <ion-fab-list side="right">
+        <button ion-fab color="secondary"(click)="startTracking()" *ngIf="!tracking"><ion-icon name="navigate-outline" class="fab-button"></ion-icon></button>
+        <button ion-fab color="danger" (click)="stopTracking()" *ngIf="tracking"><ion-icon name="close-circle-outline" class="fab-button"></ion-icon></button>
+        <button ion-fab color="pink" (click)="calculateDistance()" *ngIf="tracking"><ion-icon name="add-circle-outline" class="fab-button"></ion-icon></button>
+        <button ion-fab color="safron" (click)="stopVoiceAlerts()" *ngIf="tracking"><ion-icon name="volume-off" class="fab-button"></ion-icon></button>
+        <button ion-fab color="darkpink" (click)="startVoiceAlerts()" *ngIf="tracking"><ion-icon name="volume-up" class="fab-button"></ion-icon></button>
+      </ion-fab-list>
+    </ion-fab> -->
+	</div>
 </ion-content>

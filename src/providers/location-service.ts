@@ -10,6 +10,7 @@ import { Platform, Events } from 'ionic-angular';
 */
 @Injectable()
 export class LocationService {
+  locations:any = [];
   constructor(
   	public platform: Platform,
   	public events: Events) {
@@ -18,22 +19,22 @@ export class LocationService {
   }
 
   getCurrentLocation() {
-    let promise = new Promise((resolve, reject) => {
-      Geolocation.getCurrentPosition().then(response => {
-        resolve(response);
-      }).catch(err => {
-        console.log('Error in getting current location', err);
-        reject(err);
-      });
-    });
-    return promise;
+    return Geolocation.getCurrentPosition();
+    // let promise = new Promise((resolve, reject) => {
+    //   Geolocation.getCurrentPosition().then(response => {
+    //     resolve(response);
+    //   }).catch(err => {
+    //     reject(err);
+    //   });
+    // });
+    // return promise;
   }
 
   getLocationName(latitude, longitude) {
     let promise = new Promise<any>((resolve, reject) => {
       let place = new GoogleMapsLatLng(latitude, longitude);
       Geocoder.geocode({'position': place}).then(placename => {
-        if(placename !== undefined) {
+        if(placename != undefined) {
           let address = [
                 placename[0].subThoroughfare || '',
                 placename[0].thoroughfare || '',
@@ -44,7 +45,16 @@ export class LocationService {
                 placename[0].country || ''].join(', ');
           if(address.charAt(0) == ',') {
             address = address.slice(1, address.length);
-            resolve(address);
+            if(address.includes('(null)')) {
+              let temp1 = address.split('(null),');
+              for(let i = 0; i < temp1.length - 1; i++) {
+                address = temp1[i].concat(temp1[i+1]);
+              }
+              // console.log('Null sliced address:', address);
+              resolve(address);
+            } else {
+              resolve(address);
+            }
           } else {
             resolve(address);
           }
@@ -79,22 +89,81 @@ export class LocationService {
   degreeToRadian(deg) {
     return deg * Math.PI/180;
   }
-  watchLocation() {
-  	let config = {
-      desiredAccuracy: 10,
-      stationaryRadius: 20,
-      distanceFilter: 30,
-      debug: true, //  enable this hear sounds for background-geolocation life-cycle.
-      stopOnTerminate: false, // enable this to clear background location settings when the app terminates
-      url: 'http://192.168.1.117:3000/locations'
-    };
-		BackgroundGeolocation.configure(location => {
-			console.log('BackgroundGeolocation location', location.latitude, location.longitude);
-		}, err => {
-			console.log('Err in BackgroundGeolocation.configure');
-		}, config);
 
-		BackgroundGeolocation.start();
+  startTracking() {
+    this.configureBackgroundLocation().then(data => {
+        console.log('configured:', data);
+      }).catch(err => {
+        console.log('err in configuration', err);
+      });
+      this.startBackgroundLocation().then(location => {
+        console.log('started:', location);
+        this.events.publish('location:started', '');
+      }).catch(err => {
+        console.log('err in start', err);
+      });
+  }
+
+  configureBackgroundLocation() {
+    console.log('In configureBackgroundLocation');
+    let config = {
+        desiredAccuracy: 10,
+        stationaryRadius: 20,
+        distanceFilter: 30,
+        debug: false, //  enable this hear sounds for background-geolocation life-cycle.
+        stopOnTerminate: false, // enable this to clear background location settings when the app terminates
+        maxLocations: 100,
+        url: 'http://192.168.1.43:8080/locations',
+        notificationTitle: 'LocationTrace',
+        notificationText: 'Sarted tracking your location',
+        pauseLocationUpdates: false
+      };
+    let promise = new Promise<any>((resolve, reject) => {
+      BackgroundGeolocation.configure(location => {
+        console.log('BackgroundGeolocation location', location);
+        this.events.publish('location:updated', location);
+        resolve(location);
+      }, err => {
+        console.log('Err in BackgroundGeolocation.configure');
+        reject(err);
+      }, config);
+    });
+    return promise;
+  }
+
+  startBackgroundLocation() {
+    console.log('In startBackgroundLocation');
+    return BackgroundGeolocation.start();
+  }
+
+  watchLocation() {
+    console.log('In watch location');
+    let promise = new Promise<any>((resolve, reject) => {
+      let config = {
+        desiredAccuracy: 10,
+        stationaryRadius: 20,
+        distanceFilter: 30,
+        debug: true, //  enable this hear sounds for background-geolocation life-cycle.
+        stopOnTerminate: false, // enable this to clear background location settings when the app terminates
+        url: 'http://192.168.1.117:3000/locations',
+        maxLocations: 100
+      };
+      BackgroundGeolocation.configure(location => {
+        console.log('BackgroundGeolocation location', location.latitude, location.longitude);
+        this.locations.push(location);
+
+        BackgroundGeolocation.start().then(data => {
+          resolve(data);
+        }).catch(err => {
+          console.log('Error in BackgroundGeolocation.start()', err);
+          reject(err);
+        });
+      }, err => {
+        console.log('Err in BackgroundGeolocation.configure');
+        reject(err);
+      }, config);
+    });
+    return promise;
   }
 
   getAllLocations() {
@@ -118,31 +187,25 @@ export class LocationService {
     });
   }
 
-  startTracking() {
-    // BackgroundGeolocation is highly configurable. See platform specific configuration options
-    let config = {
-      desiredAccuracy: 0,
-      stationaryRadius: 10,
-      distanceFilter: 20,
-      debug: true, //  enable this hear sounds for background-geolocation life-cycle.
-      stopOnTerminate: false, // enable this to clear background location settings when the app terminates
-      url: 'http://192.168.1.117:3000/locations',
-      pauseLocationUpdates: false
-    };
+  // startTracking() {
+  //   // BackgroundGeolocation is highly configurable. See platform specific configuration options
+  //   let config = {
+  //     desiredAccuracy: 0,
+  //     stationaryRadius: 10,
+  //     distanceFilter: 20,
+  //     debug: true, //  enable this hear sounds for background-geolocation life-cycle.
+  //     stopOnTerminate: false, // enable this to clear background location settings when the app terminates
+  //     url: 'http://192.168.1.117:3000/locations',
+  //     pauseLocationUpdates: false
+  //   };
 
-    BackgroundGeolocation.configure((location) => {
-      console.log('BackgroundGeolocation callback:  ' + location.latitude + ',' + location.longitude);
+  //   BackgroundGeolocation.configure((location) => {
+  //     console.log('BackgroundGeolocation callback:  ' + location.latitude + ',' + location.longitude);
+  //    }, (error) => {
+  //      console.log('BackgroundGeolocation error');
+  //    }, config);
 
-      // IMPORTANT:  You must execute the finish method here to inform the native plugin that you're finished,
-      // and the background-task may be completed.  You must do this regardless if your HTTP request is successful or not.
-      // IF YOU DON'T, ios will CRASH YOUR APP for spending too much time in the background.
-      // BackgroundGeolocation.finish(); // FOR IOS ONLY
-
-     }, (error) => {
-       console.log('BackgroundGeolocation error');
-     }, config);
-
-    // Turn ON the background-geolocation system.  The user will be tracked whenever they suspend the app.
-    BackgroundGeolocation.start();
-  }
+  //   // Turn ON the background-geolocation system.  The user will be tracked whenever they suspend the app.
+  //   BackgroundGeolocation.start();
+  // }
 }
